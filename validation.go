@@ -3,18 +3,26 @@ package accountapi
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 )
 
 const (
-	accountType          = "accounts"
-	countryLength        = 2
-	baseCurrencyLength   = 3
+	accountType        = "accounts"
+	countryLength      = 2
+	baseCurrencyLength = 3
+)
+
+// FirstName attribute length
+const (
 	firstNameLengthStart = 2
 	firstNameLengthStop  = 140
-	//
+)
+
+// AlternativeAccountNames attribute lengths
+const (
 	alternativeAccountNamesArrayLengthStart = 1
 	alternativeAccountNamesArrayLengthStop  = 3
 	alternativeAccountNamesElemLengthStart  = 3
@@ -23,8 +31,8 @@ const (
 
 // BIC length range
 const (
-	BICLengthStart = 8
-	BICLengthStop  = 11
+	BICLength8  = 8
+	BICLength11 = 11
 )
 
 // general validation rules
@@ -37,7 +45,7 @@ var (
 		func(value interface{}) error {
 			bic, _ := value.(string)
 			length := len(bic)
-			if bic != "" && length != BICLengthStart && length != BICLengthStop {
+			if bic != "" && length != BICLength8 && length != BICLength11 {
 				return &InvalidBICLengthError{length}
 			}
 			return nil
@@ -50,6 +58,19 @@ var (
 			length := len(currency)
 			if currency != "" && length != baseCurrencyLength {
 				return &InvalidBaseCurrencyLengthError{length}
+			}
+			return nil
+		},
+	)
+
+	validateStringNumber = validation.By(
+		func(value interface{}) error {
+			number, _ := value.(string)
+			if number != "" {
+				_, err := strconv.ParseFloat(number, 64)
+				if err != nil {
+					return &InvalidAccountNumberError{number}
+				}
 			}
 			return nil
 		},
@@ -72,7 +93,7 @@ func (a *Attributes) validateUnitedKingdom() error {
 		validateBankID = []validation.Rule{
 			validation.Required,
 			validateBankIDLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
@@ -113,7 +134,7 @@ func (a *Attributes) validateUnitedKingdom() error {
 
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
@@ -156,7 +177,7 @@ func (a *Attributes) validateAustralia() error {
 
 		validateBankID = []validation.Rule{
 			validateBankIDLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
@@ -210,7 +231,7 @@ func (a *Attributes) validateAustralia() error {
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
 			validateAccoountNumberFirstCharacter,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
@@ -254,7 +275,7 @@ func (a *Attributes) validateBelgium() error {
 		validateBankID = []validation.Rule{
 			validation.Required,
 			validateBankIDLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
@@ -294,7 +315,7 @@ func (a *Attributes) validateBelgium() error {
 
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
@@ -348,7 +369,7 @@ func (a *Attributes) validateCanada() error {
 		validateBankID = []validation.Rule{
 			validateBankIDLength,
 			validateBankIDFirstCharacter,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
@@ -390,7 +411,7 @@ func (a *Attributes) validateCanada() error {
 
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
@@ -434,7 +455,7 @@ func (a *Attributes) validateFrance() error {
 		validateBankID = []validation.Rule{
 			validation.Required,
 			validateBankIDLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
@@ -474,7 +495,7 @@ func (a *Attributes) validateFrance() error {
 
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
@@ -518,7 +539,7 @@ func (a *Attributes) validateGermany() error {
 		validateBankID = []validation.Rule{
 			validation.Required,
 			validateBankIDLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
@@ -558,7 +579,7 @@ func (a *Attributes) validateGermany() error {
 
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
@@ -602,7 +623,7 @@ func (a *Attributes) validateGreece() error {
 		validateBankID = []validation.Rule{
 			validation.Required,
 			validateBankIDLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
@@ -642,7 +663,7 @@ func (a *Attributes) validateGreece() error {
 
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
@@ -685,7 +706,7 @@ func (a *Attributes) validateHongKong() error {
 
 		validateBankID = []validation.Rule{
 			validateBankIDLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
@@ -727,7 +748,7 @@ func (a *Attributes) validateHongKong() error {
 
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
@@ -786,7 +807,7 @@ func (a *Attributes) validateItaly() error {
 				!validation.IsEmpty(a.AccountNumber),
 				validateBankIDLength(accountNumberPresent),
 			),
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
@@ -826,7 +847,7 @@ func (a *Attributes) validateItaly() error {
 
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
@@ -870,7 +891,7 @@ func (a *Attributes) validateLuxembourg() error {
 		validateBankID = []validation.Rule{
 			validation.Required,
 			validateBankIDLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
@@ -910,7 +931,7 @@ func (a *Attributes) validateLuxembourg() error {
 
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
@@ -952,13 +973,13 @@ func (a *Attributes) validateNetherlands() error {
 
 		validateBankID = []validation.Rule{
 			validateBankIDMatch,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
 			validation.Required,
 			validateBICMatch,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBankIDCodeMatch = validation.By(
@@ -992,7 +1013,7 @@ func (a *Attributes) validateNetherlands() error {
 
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
@@ -1036,7 +1057,7 @@ func (a *Attributes) validatePoland() error {
 		validateBankID = []validation.Rule{
 			validation.Required,
 			validateBankIDLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
@@ -1076,7 +1097,7 @@ func (a *Attributes) validatePoland() error {
 
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
@@ -1120,7 +1141,7 @@ func (a *Attributes) validatePortugal() error {
 		validateBankID = []validation.Rule{
 			validation.Required,
 			validateBankIDLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
@@ -1160,7 +1181,7 @@ func (a *Attributes) validatePortugal() error {
 
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
@@ -1204,7 +1225,7 @@ func (a *Attributes) validateSpain() error {
 		validateBankID = []validation.Rule{
 			validation.Required,
 			validateBankIDLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
@@ -1244,7 +1265,7 @@ func (a *Attributes) validateSpain() error {
 
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
@@ -1288,7 +1309,7 @@ func (a *Attributes) validateSwitzerland() error {
 		validateBankID = []validation.Rule{
 			validation.Required,
 			validateBankIDLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
@@ -1328,7 +1349,7 @@ func (a *Attributes) validateSwitzerland() error {
 
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
@@ -1372,7 +1393,7 @@ func (a *Attributes) validateUnitedStates() error {
 		validateBankID = []validation.Rule{
 			validation.Required,
 			validateBankIDLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBIC = []validation.Rule{
@@ -1415,7 +1436,7 @@ func (a *Attributes) validateUnitedStates() error {
 
 		validateAccountNumber = []validation.Rule{
 			validateAccountNumberLength,
-			is.Int,
+			validateStringNumber,
 		}
 
 		validateBaseCurrencyMatch = validation.By(
