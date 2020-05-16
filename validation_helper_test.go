@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
-	"testing"
 	"time"
 
 	. "github.com/alexdreptu/form3-accountapi-client"
@@ -25,12 +24,55 @@ const startWithZero = true
 // for randomBankIDItaly
 const accountNumberPresent = true
 
+var firstNamesMale = []string{
+	"Jacob", "Mason", "Ethan", "Noah",
+	"William", "Liam", "Jayden", "Michael",
+	"Alexander", "Aiden", "Daniel", "Matthew",
+	"Elijah", "James", "Anthony", "Benjamin",
+	"Joshua", "Andrew", "David", "Joseph",
+}
+
+var firstNamesFemale = []string{
+	"Sophia", "Emma", "Isabella", "Olivia",
+	"Ava", "Emily", "Abigail", "Mia",
+	"Madison", "Elizabeth", "Chloe", "Ella",
+	"Avery", "Addison", "Aubrey", "Lily",
+	"Natalie", "Sofia", "Charlotte", "Zoey",
+}
+
+var lastNames = []string{
+	"Smith", "Johnson", "Williams", "Jones",
+	"Brown", "Davis", "Miller", "Wilson",
+	"Moore", "Taylor", "Anderson", "Thomas",
+	"Jackson", "White", "Harris", "Martin",
+	"Thompson", "Garcia", "Martinez", "Robinson",
+}
+
+func randomFirstName() string {
+	length := len(firstNamesMale) + len(firstNamesFemale)
+	names := make([]string, length)
+	names = append(firstNamesMale, firstNamesFemale...)
+	random := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return names[random.Intn(length)]
+}
+
+func randomFullName() string {
+	length := len(firstNamesMale) + len(firstNamesFemale)
+	firstNames := make([]string, length)
+	firstNames = append(firstNamesMale, firstNamesFemale...)
+	random := rand.New(rand.NewSource(time.Now().UnixNano()))
+	firstName := firstNames[random.Intn(length)]
+	lastName := lastNames[random.Intn(len(lastNames))]
+	fullName := firstName + " " + lastName
+	return fullName
+}
+
 func randomAlphanumeric(length int, uppercase ...bool) string {
 	const alphanumeric = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 	chars := make([]byte, length)
 	for i := range chars {
-		chars[i] = alphanumeric[rnd.Intn(len(alphanumeric))]
+		chars[i] = alphanumeric[random.Intn(len(alphanumeric))]
 	}
 
 	str := string(chars)
@@ -211,9 +253,4 @@ func randomAccountNumberSwitzerland() string {
 func randomAccountNumberUnitedStates() string {
 	length := randomLength(AccountNumberLengthUnitedStatesStart, AccountNumberLengthUnitedStatesStop)
 	return randomStringNumber(length)
-}
-
-// TODO: implement
-func TestNewAccount(t *testing.T) {
-	//
 }
