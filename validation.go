@@ -1,7 +1,6 @@
 package accountapi
 
 import (
-	"fmt"
 	"regexp"
 	"strconv"
 
@@ -10,9 +9,11 @@ import (
 )
 
 const (
-	accountType        = "accounts"
-	countryLength      = 2
-	baseCurrencyLength = 3
+	accountType           = "accounts"
+	countryLength         = 2
+	baseCurrencyLength    = 3
+	customerIDLengthStart = 5
+	customerIDLengthStop  = 15
 )
 
 // FirstName attribute length
@@ -23,10 +24,10 @@ const (
 
 // AlternativeAccountNames attribute lengths
 const (
-	alternativeAccountNamesArrayLengthStart = 1
-	alternativeAccountNamesArrayLengthStop  = 3
-	alternativeAccountNamesElemLengthStart  = 3
-	alternativeAccountNamesElemLengthStop   = 140
+	alternativeBankAccountNamesArrayLengthStart = 1
+	alternativeBankAccountNamesArrayLengthStop  = 3
+	alternativeBankAccountNamesElemLengthStart  = 3
+	alternativeBankAccountNamesElemLengthStop   = 140
 )
 
 // BIC length range
@@ -46,7 +47,11 @@ var (
 			bic, _ := value.(string)
 			length := len(bic)
 			if bic != "" && length != BICLength8 && length != BICLength11 {
-				return &InvalidBICLengthError{length}
+				return &InvalidBICLengthError{
+					MustLength1: BICLength8,
+					MustLength2: BICLength11,
+					Length:      length,
+				}
 			}
 			return nil
 		},
@@ -57,12 +62,16 @@ var (
 			currency, _ := value.(string)
 			length := len(currency)
 			if currency != "" && length != baseCurrencyLength {
-				return &InvalidBaseCurrencyLengthError{length}
+				return &InvalidBaseCurrencyLengthError{
+					MustLength: baseCurrencyLength,
+					Length:     length,
+				}
 			}
 			return nil
 		},
 	)
 
+	// NOTE: possible bug
 	validateStringNumber = validation.By(
 		func(value interface{}) error {
 			number, _ := value.(string)
@@ -84,7 +93,10 @@ func (a *Attributes) validateUnitedKingdom() error {
 				id, _ := value.(string)
 				length := len(id)
 				if length != BankIDLengthUnitedKingdom {
-					return &InvalidBankIDLengthError{length}
+					return &InvalidBankIDLengthError{
+						MustLength: BankIDLengthUnitedKingdom,
+						Length:     length,
+					}
 				}
 				return nil
 			},
@@ -106,7 +118,10 @@ func (a *Attributes) validateUnitedKingdom() error {
 			func(value interface{}) error {
 				code, _ := value.(string)
 				if code != BankIDCodeUnitedKingdom {
-					return &InvalidBankIDCodeError{code}
+					return &InvalidBankIDCodeError{
+						MustCode: BankIDCodeUnitedKingdom,
+						Code:     code,
+					}
 				}
 				return nil
 			},
@@ -114,6 +129,7 @@ func (a *Attributes) validateUnitedKingdom() error {
 
 		validateBankIDCode = []validation.Rule{
 			validation.Required,
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -123,9 +139,8 @@ func (a *Attributes) validateUnitedKingdom() error {
 				length := len(number)
 				if number != "" && length != AccountNumberLengthUnitedKingdom {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be %d characters long",
-							AccountNumberLengthUnitedKingdom),
-						Length: length,
+						MustLength: AccountNumberLengthUnitedKingdom,
+						Length:     length,
 					}
 				}
 				return nil
@@ -141,7 +156,10 @@ func (a *Attributes) validateUnitedKingdom() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencyUnitedKingdom {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencyUnitedKingdom,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -149,6 +167,7 @@ func (a *Attributes) validateUnitedKingdom() error {
 
 		validateBaseCurrency = []validation.Rule{
 			validateBaseCurrencyLength,
+			is.Alpha,
 			validateBaseCurrencyMatch,
 		}
 	)
@@ -169,7 +188,10 @@ func (a *Attributes) validateAustralia() error {
 				id, _ := value.(string)
 				length := len(id)
 				if id != "" && length != BankIDLengthAustralia {
-					return &InvalidBankIDLengthError{length}
+					return &InvalidBankIDLengthError{
+						MustLength: BankIDLengthAustralia,
+						Length:     length,
+					}
 				}
 				return nil
 			},
@@ -190,7 +212,10 @@ func (a *Attributes) validateAustralia() error {
 			func(value interface{}) error {
 				code, _ := value.(string)
 				if code != BankIDCodeAustralia {
-					return &InvalidBankIDCodeError{code}
+					return &InvalidBankIDCodeError{
+						MustCode: BankIDCodeAustralia,
+						Code:     code,
+					}
 				}
 				return nil
 			},
@@ -198,6 +223,7 @@ func (a *Attributes) validateAustralia() error {
 
 		validateBankIDCode = []validation.Rule{
 			validation.Required,
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -209,9 +235,9 @@ func (a *Attributes) validateAustralia() error {
 					!(length >= AccountNumberLengthAustraliaStart &&
 						length <= AccountNumberLengthAustraliaStop) {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be between %d and %d characters long",
-							AccountNumberLengthAustraliaStart, AccountNumberLengthAustraliaStop),
-						Length: length,
+						MustLengthFrom: AccountNumberLengthAustraliaStart,
+						MustLengthTo:   AccountNumberLengthAustraliaStop,
+						Length:         length,
 					}
 				}
 				return nil
@@ -238,7 +264,10 @@ func (a *Attributes) validateAustralia() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencyAustralia {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencyAustralia,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -246,6 +275,7 @@ func (a *Attributes) validateAustralia() error {
 
 		validateBaseCurrency = []validation.Rule{
 			validateBaseCurrencyLength,
+			is.Alpha,
 			validateBaseCurrencyMatch,
 		}
 	)
@@ -266,7 +296,10 @@ func (a *Attributes) validateBelgium() error {
 				id, _ := value.(string)
 				length := len(id)
 				if length != BankIDLengthBelgium {
-					return &InvalidBankIDLengthError{length}
+					return &InvalidBankIDLengthError{
+						MustLength: BankIDLengthBelgium,
+						Length:     length,
+					}
 				}
 				return nil
 			},
@@ -287,7 +320,10 @@ func (a *Attributes) validateBelgium() error {
 			func(value interface{}) error {
 				code, _ := value.(string)
 				if code != BankIDCodeBelgium {
-					return &InvalidBankIDCodeError{code}
+					return &InvalidBankIDCodeError{
+						MustCode: BankIDCodeBelgium,
+						Code:     code,
+					}
 				}
 				return nil
 			},
@@ -295,6 +331,7 @@ func (a *Attributes) validateBelgium() error {
 
 		validateBankIDCode = []validation.Rule{
 			validation.Required,
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -304,9 +341,8 @@ func (a *Attributes) validateBelgium() error {
 				length := len(number)
 				if number != "" && length != AccountNumberLengthBelgium {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be %d characters long",
-							AccountNumberLengthBelgium),
-						Length: length,
+						MustLength: AccountNumberLengthBelgium,
+						Length:     length,
 					}
 				}
 				return nil
@@ -322,7 +358,10 @@ func (a *Attributes) validateBelgium() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencyBelgium {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencyBelgium,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -350,7 +389,10 @@ func (a *Attributes) validateCanada() error {
 				id, _ := value.(string)
 				length := len(id)
 				if id != "" && length != BankIDLengthCanada {
-					return &InvalidBankIDLengthError{length}
+					return &InvalidBankIDLengthError{
+						MustLength: BankIDLengthCanada,
+						Length:     length,
+					}
 				}
 				return nil
 			},
@@ -382,13 +424,17 @@ func (a *Attributes) validateCanada() error {
 			func(value interface{}) error {
 				code, _ := value.(string)
 				if code != "" && code != BankIDCodeCanada {
-					return &InvalidBankIDCodeError{code}
+					return &InvalidBankIDCodeError{
+						MustCode: BankIDCodeCanada,
+						Code:     code,
+					}
 				}
 				return nil
 			},
 		)
 
 		validateBankIDCode = []validation.Rule{
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -400,9 +446,9 @@ func (a *Attributes) validateCanada() error {
 					!(length >= AccountNumberLengthCanadaStart &&
 						length <= AccountNumberLengthCanadaStop) {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be between %d and %d characters long",
-							AccountNumberLengthCanadaStart, AccountNumberLengthCanadaStop),
-						Length: length,
+						MustLengthFrom: AccountNumberLengthCanadaStart,
+						MustLengthTo:   AccountNumberLengthCanadaStop,
+						Length:         length,
 					}
 				}
 				return nil
@@ -418,7 +464,10 @@ func (a *Attributes) validateCanada() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencyCanada {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencyCanada,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -426,6 +475,7 @@ func (a *Attributes) validateCanada() error {
 
 		validateBaseCurrency = []validation.Rule{
 			validateBaseCurrencyLength,
+			is.Alpha,
 			validateBaseCurrencyMatch,
 		}
 	)
@@ -446,7 +496,10 @@ func (a *Attributes) validateFrance() error {
 				id, _ := value.(string)
 				length := len(id)
 				if length != BankIDLengthFrance {
-					return &InvalidBankIDLengthError{length}
+					return &InvalidBankIDLengthError{
+						MustLength: BankIDLengthFrance,
+						Length:     length,
+					}
 				}
 				return nil
 			},
@@ -467,7 +520,10 @@ func (a *Attributes) validateFrance() error {
 			func(value interface{}) error {
 				code, _ := value.(string)
 				if code != BankIDCodeFrance {
-					return &InvalidBankIDCodeError{code}
+					return &InvalidBankIDCodeError{
+						MustCode: BankIDCodeFrance,
+						Code:     code,
+					}
 				}
 				return nil
 			},
@@ -475,6 +531,7 @@ func (a *Attributes) validateFrance() error {
 
 		validateBankIDCode = []validation.Rule{
 			validation.Required,
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -484,9 +541,8 @@ func (a *Attributes) validateFrance() error {
 				length := len(number)
 				if number != "" && length != AccountNumberLengthFrance {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be %d characters long",
-							AccountNumberLengthFrance),
-						Length: length,
+						MustLength: AccountNumberLengthFrance,
+						Length:     length,
 					}
 				}
 				return nil
@@ -502,7 +558,10 @@ func (a *Attributes) validateFrance() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencyFrance {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencyFrance,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -510,6 +569,7 @@ func (a *Attributes) validateFrance() error {
 
 		validateBaseCurrency = []validation.Rule{
 			validateBaseCurrencyLength,
+			is.Alpha,
 			validateBaseCurrencyMatch,
 		}
 	)
@@ -530,7 +590,10 @@ func (a *Attributes) validateGermany() error {
 				id, _ := value.(string)
 				length := len(id)
 				if length != BankIDLengthGermany {
-					return &InvalidBankIDLengthError{length}
+					return &InvalidBankIDLengthError{
+						MustLength: BankIDLengthGermany,
+						Length:     length,
+					}
 				}
 				return nil
 			},
@@ -551,7 +614,10 @@ func (a *Attributes) validateGermany() error {
 			func(value interface{}) error {
 				code, _ := value.(string)
 				if code != BankIDCodeGermany {
-					return &InvalidBankIDCodeError{code}
+					return &InvalidBankIDCodeError{
+						MustCode: BankIDCodeGermany,
+						Code:     code,
+					}
 				}
 				return nil
 			},
@@ -559,6 +625,7 @@ func (a *Attributes) validateGermany() error {
 
 		validateBankIDCode = []validation.Rule{
 			validation.Required,
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -568,9 +635,8 @@ func (a *Attributes) validateGermany() error {
 				length := len(number)
 				if number != "" && length != AccountNumberLengthGermany {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be %d characters long",
-							AccountNumberLengthGermany),
-						Length: length,
+						MustLength: AccountNumberLengthGermany,
+						Length:     length,
 					}
 				}
 				return nil
@@ -586,7 +652,10 @@ func (a *Attributes) validateGermany() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencyGermany {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencyGermany,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -594,6 +663,7 @@ func (a *Attributes) validateGermany() error {
 
 		validateBaseCurrency = []validation.Rule{
 			validateBaseCurrencyLength,
+			is.Alpha,
 			validateBaseCurrencyMatch,
 		}
 	)
@@ -614,7 +684,10 @@ func (a *Attributes) validateGreece() error {
 				id, _ := value.(string)
 				length := len(id)
 				if length != BankIDLengthGreece {
-					return &InvalidBankIDLengthError{length}
+					return &InvalidBankIDLengthError{
+						MustLength: BankIDLengthGreece,
+						Length:     length,
+					}
 				}
 				return nil
 			},
@@ -635,7 +708,10 @@ func (a *Attributes) validateGreece() error {
 			func(value interface{}) error {
 				code, _ := value.(string)
 				if code != BankIDCodeGreece {
-					return &InvalidBankIDCodeError{code}
+					return &InvalidBankIDCodeError{
+						MustCode: BankIDCodeGreece,
+						Code:     code,
+					}
 				}
 				return nil
 			},
@@ -643,6 +719,7 @@ func (a *Attributes) validateGreece() error {
 
 		validateBankIDCode = []validation.Rule{
 			validation.Required,
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -652,9 +729,8 @@ func (a *Attributes) validateGreece() error {
 				length := len(number)
 				if number != "" && length != AccountNumberLengthGreece {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be %d characters long",
-							AccountNumberLengthGreece),
-						Length: length,
+						MustLength: AccountNumberLengthGreece,
+						Length:     length,
 					}
 				}
 				return nil
@@ -670,7 +746,10 @@ func (a *Attributes) validateGreece() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencyGreecee {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencyGreecee,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -678,6 +757,7 @@ func (a *Attributes) validateGreece() error {
 
 		validateBaseCurrency = []validation.Rule{
 			validateBaseCurrencyLength,
+			is.Alpha,
 			validateBaseCurrencyMatch,
 		}
 	)
@@ -698,7 +778,10 @@ func (a *Attributes) validateHongKong() error {
 				id, _ := value.(string)
 				length := len(id)
 				if id != "" && length != BankIDLengthHongKong {
-					return &InvalidBankIDLengthError{length}
+					return &InvalidBankIDLengthError{
+						MustLength: BankIDLengthHongKong,
+						Length:     length,
+					}
 				}
 				return nil
 			},
@@ -719,13 +802,17 @@ func (a *Attributes) validateHongKong() error {
 			func(value interface{}) error {
 				code, _ := value.(string)
 				if code != "" && code != BankIDCodeHongKong {
-					return &InvalidBankIDCodeError{code}
+					return &InvalidBankIDCodeError{
+						MustCode: BankIDCodeHongKong,
+						Code:     code,
+					}
 				}
 				return nil
 			},
 		)
 
 		validateBankIDCode = []validation.Rule{
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -737,9 +824,9 @@ func (a *Attributes) validateHongKong() error {
 					!(length >= AccountNumberLengthHongKongStart &&
 						length <= AccountNumberLengthHongKongStop) {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be between %d and %d characters long",
-							AccountNumberLengthHongKongStart, AccountNumberLengthHongKongStop),
-						Length: length,
+						MustLengthFrom: AccountNumberLengthHongKongStart,
+						MustLengthTo:   AccountNumberLengthHongKongStop,
+						Length:         length,
 					}
 				}
 				return nil
@@ -755,7 +842,10 @@ func (a *Attributes) validateHongKong() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencyHongKong {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencyHongKong,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -763,6 +853,7 @@ func (a *Attributes) validateHongKong() error {
 
 		validateBaseCurrency = []validation.Rule{
 			validateBaseCurrencyLength,
+			is.Alpha,
 			validateBaseCurrencyMatch,
 		}
 	)
@@ -789,7 +880,10 @@ func (a *Attributes) validateItaly() error {
 					id, _ := value.(string)
 					length := len(id)
 					if length != mustLength {
-						return &InvalidBankIDLengthError{length}
+						return &InvalidBankIDLengthError{
+							MustLength: mustLength,
+							Length:     length,
+						}
 					}
 					return nil
 				},
@@ -819,7 +913,10 @@ func (a *Attributes) validateItaly() error {
 			func(value interface{}) error {
 				code, _ := value.(string)
 				if code != BankIDCodeItaly {
-					return &InvalidBankIDCodeError{code}
+					return &InvalidBankIDCodeError{
+						MustCode: BankIDCodeItaly,
+						Code:     code,
+					}
 				}
 				return nil
 			},
@@ -827,6 +924,7 @@ func (a *Attributes) validateItaly() error {
 
 		validateBankIDCode = []validation.Rule{
 			validation.Required,
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -836,9 +934,8 @@ func (a *Attributes) validateItaly() error {
 				length := len(number)
 				if number != "" && length != AccountNumberLengthItaly {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be %d characters long",
-							AccountNumberLengthItaly),
-						Length: length,
+						MustLength: AccountNumberLengthItaly,
+						Length:     length,
 					}
 				}
 				return nil
@@ -854,7 +951,10 @@ func (a *Attributes) validateItaly() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencyItaly {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencyItaly,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -862,6 +962,7 @@ func (a *Attributes) validateItaly() error {
 
 		validateBaseCurrency = []validation.Rule{
 			validateBaseCurrencyLength,
+			is.Alpha,
 			validateBaseCurrencyMatch,
 		}
 	)
@@ -882,7 +983,10 @@ func (a *Attributes) validateLuxembourg() error {
 				id, _ := value.(string)
 				length := len(id)
 				if length != BankIDLengthLuxembourg {
-					return &InvalidBankIDLengthError{length}
+					return &InvalidBankIDLengthError{
+						MustLength: BankIDLengthLuxembourg,
+						Length:     length,
+					}
 				}
 				return nil
 			},
@@ -903,7 +1007,10 @@ func (a *Attributes) validateLuxembourg() error {
 			func(value interface{}) error {
 				code, _ := value.(string)
 				if code != BankIDCodeLuxembourg {
-					return &InvalidBankIDCodeError{code}
+					return &InvalidBankIDCodeError{
+						MustCode: BankIDCodeLuxembourg,
+						Code:     code,
+					}
 				}
 				return nil
 			},
@@ -911,6 +1018,7 @@ func (a *Attributes) validateLuxembourg() error {
 
 		validateBankIDCode = []validation.Rule{
 			validation.Required,
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -920,9 +1028,8 @@ func (a *Attributes) validateLuxembourg() error {
 				length := len(number)
 				if number != "" && length != AccountNumberLengthLuxembourg {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be %d characters long",
-							AccountNumberLengthLuxembourg),
-						Length: length,
+						MustLength: AccountNumberLengthLuxembourg,
+						Length:     length,
 					}
 				}
 				return nil
@@ -938,7 +1045,10 @@ func (a *Attributes) validateLuxembourg() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencyLuxembourg {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencyLuxembourg,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -946,6 +1056,7 @@ func (a *Attributes) validateLuxembourg() error {
 
 		validateBaseCurrency = []validation.Rule{
 			validateBaseCurrencyLength,
+			is.Alpha,
 			validateBaseCurrencyMatch,
 		}
 	)
@@ -978,8 +1089,8 @@ func (a *Attributes) validateNetherlands() error {
 
 		validateBIC = []validation.Rule{
 			validation.Required,
+			validateBICLength,
 			validateBICMatch,
-			validateStringNumber,
 		}
 
 		validateBankIDCodeMatch = validation.By(
@@ -993,6 +1104,7 @@ func (a *Attributes) validateNetherlands() error {
 		)
 
 		validateBankIDCode = []validation.Rule{
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -1002,9 +1114,8 @@ func (a *Attributes) validateNetherlands() error {
 				length := len(number)
 				if number != "" && length != AccountNumberLengthNetherlands {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be %d characters long",
-							AccountNumberLengthNetherlands),
-						Length: length,
+						MustLength: AccountNumberLengthNetherlands,
+						Length:     length,
 					}
 				}
 				return nil
@@ -1020,7 +1131,10 @@ func (a *Attributes) validateNetherlands() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencyNetherlands {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencyNetherlands,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -1028,6 +1142,7 @@ func (a *Attributes) validateNetherlands() error {
 
 		validateBaseCurrency = []validation.Rule{
 			validateBaseCurrencyLength,
+			is.Alpha,
 			validateBaseCurrencyMatch,
 		}
 	)
@@ -1048,7 +1163,10 @@ func (a *Attributes) validatePoland() error {
 				id, _ := value.(string)
 				length := len(id)
 				if length != BankIDLengthPoland {
-					return &InvalidBankIDLengthError{length}
+					return &InvalidBankIDLengthError{
+						MustLength: BankIDLengthPoland,
+						Length:     length,
+					}
 				}
 				return nil
 			},
@@ -1069,7 +1187,10 @@ func (a *Attributes) validatePoland() error {
 			func(value interface{}) error {
 				code, _ := value.(string)
 				if code != BankIDCodePoland {
-					return &InvalidBankIDCodeError{code}
+					return &InvalidBankIDCodeError{
+						MustCode: BankIDCodePoland,
+						Code:     code,
+					}
 				}
 				return nil
 			},
@@ -1077,6 +1198,7 @@ func (a *Attributes) validatePoland() error {
 
 		validateBankIDCode = []validation.Rule{
 			validation.Required,
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -1086,9 +1208,8 @@ func (a *Attributes) validatePoland() error {
 				length := len(number)
 				if number != "" && length != AccountNumberLengthPoland {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be %d characters long",
-							AccountNumberLengthPoland),
-						Length: length,
+						MustLength: AccountNumberLengthPoland,
+						Length:     length,
 					}
 				}
 				return nil
@@ -1104,7 +1225,10 @@ func (a *Attributes) validatePoland() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencyPoland {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencyPoland,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -1112,6 +1236,7 @@ func (a *Attributes) validatePoland() error {
 
 		validateBaseCurrency = []validation.Rule{
 			validateBaseCurrencyLength,
+			is.Alpha,
 			validateBaseCurrencyMatch,
 		}
 	)
@@ -1132,7 +1257,10 @@ func (a *Attributes) validatePortugal() error {
 				id, _ := value.(string)
 				length := len(id)
 				if length != BankIDLengthPortugal {
-					return &InvalidBankIDLengthError{length}
+					return &InvalidBankIDLengthError{
+						MustLength: BankIDLengthPortugal,
+						Length:     length,
+					}
 				}
 				return nil
 			},
@@ -1153,7 +1281,10 @@ func (a *Attributes) validatePortugal() error {
 			func(value interface{}) error {
 				code, _ := value.(string)
 				if code != BankIDCodePortugal {
-					return &InvalidBankIDCodeError{code}
+					return &InvalidBankIDCodeError{
+						MustCode: BankIDCodePortugal,
+						Code:     code,
+					}
 				}
 				return nil
 			},
@@ -1161,6 +1292,7 @@ func (a *Attributes) validatePortugal() error {
 
 		validateBankIDCode = []validation.Rule{
 			validation.Required,
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -1170,9 +1302,8 @@ func (a *Attributes) validatePortugal() error {
 				length := len(number)
 				if number != "" && length != AccountNumberLengthPortugal {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be %d characters long",
-							AccountNumberLengthPortugal),
-						Length: length,
+						MustLength: AccountNumberLengthPortugal,
+						Length:     length,
 					}
 				}
 				return nil
@@ -1188,7 +1319,10 @@ func (a *Attributes) validatePortugal() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencyPortugal {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencyPortugal,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -1196,6 +1330,7 @@ func (a *Attributes) validatePortugal() error {
 
 		validateBaseCurrency = []validation.Rule{
 			validateBaseCurrencyLength,
+			is.Alpha,
 			validateBaseCurrencyMatch,
 		}
 	)
@@ -1216,7 +1351,10 @@ func (a *Attributes) validateSpain() error {
 				id, _ := value.(string)
 				length := len(id)
 				if length != BankIDLengthSpain {
-					return &InvalidBankIDLengthError{length}
+					return &InvalidBankIDLengthError{
+						MustLength: BankIDLengthSpain,
+						Length:     length,
+					}
 				}
 				return nil
 			},
@@ -1237,7 +1375,10 @@ func (a *Attributes) validateSpain() error {
 			func(value interface{}) error {
 				code, _ := value.(string)
 				if code != BankIDCodeSpain {
-					return &InvalidBankIDCodeError{code}
+					return &InvalidBankIDCodeError{
+						MustCode: BankIDCodeSpain,
+						Code:     code,
+					}
 				}
 				return nil
 			},
@@ -1245,6 +1386,7 @@ func (a *Attributes) validateSpain() error {
 
 		validateBankIDCode = []validation.Rule{
 			validation.Required,
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -1254,9 +1396,8 @@ func (a *Attributes) validateSpain() error {
 				length := len(number)
 				if number != "" && length != AccountNumberLengthSpain {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be %d characters long",
-							AccountNumberLengthSpain),
-						Length: length,
+						MustLength: AccountNumberLengthSpain,
+						Length:     length,
 					}
 				}
 				return nil
@@ -1272,7 +1413,10 @@ func (a *Attributes) validateSpain() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencySpain {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencySpain,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -1280,6 +1424,7 @@ func (a *Attributes) validateSpain() error {
 
 		validateBaseCurrency = []validation.Rule{
 			validateBaseCurrencyLength,
+			is.Alpha,
 			validateBaseCurrencyMatch,
 		}
 	)
@@ -1300,7 +1445,10 @@ func (a *Attributes) validateSwitzerland() error {
 				id, _ := value.(string)
 				length := len(id)
 				if length != BankIDLengthSwitzerland {
-					return &InvalidBankIDLengthError{length}
+					return &InvalidBankIDLengthError{
+						MustLength: BankIDLengthSwitzerland,
+						Length:     length,
+					}
 				}
 				return nil
 			},
@@ -1321,7 +1469,10 @@ func (a *Attributes) validateSwitzerland() error {
 			func(value interface{}) error {
 				code, _ := value.(string)
 				if code != BankIDCodeSwitzerland {
-					return &InvalidBankIDCodeError{code}
+					return &InvalidBankIDCodeError{
+						MustCode: BankIDCodeSwitzerland,
+						Code:     code,
+					}
 				}
 				return nil
 			},
@@ -1329,6 +1480,7 @@ func (a *Attributes) validateSwitzerland() error {
 
 		validateBankIDCode = []validation.Rule{
 			validation.Required,
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -1338,9 +1490,8 @@ func (a *Attributes) validateSwitzerland() error {
 				length := len(number)
 				if number != "" && length != AccountNumberLengthSwitzerland {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be %d characters long",
-							AccountNumberLengthSwitzerland),
-						Length: length,
+						MustLength: AccountNumberLengthSwitzerland,
+						Length:     length,
 					}
 				}
 				return nil
@@ -1356,7 +1507,10 @@ func (a *Attributes) validateSwitzerland() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencySwitzerland {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencySwitzerland,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -1364,6 +1518,7 @@ func (a *Attributes) validateSwitzerland() error {
 
 		validateBaseCurrency = []validation.Rule{
 			validateBaseCurrencyLength,
+			is.Alpha,
 			validateBaseCurrencyMatch,
 		}
 	)
@@ -1384,7 +1539,10 @@ func (a *Attributes) validateUnitedStates() error {
 				id, _ := value.(string)
 				length := len(id)
 				if length != BankIDLengthUnitedStates {
-					return &InvalidBankIDLengthError{length}
+					return &InvalidBankIDLengthError{
+						MustLength: BankIDLengthUnitedStates,
+						Length:     length,
+					}
 				}
 				return nil
 			},
@@ -1406,7 +1564,10 @@ func (a *Attributes) validateUnitedStates() error {
 			func(value interface{}) error {
 				code, _ := value.(string)
 				if code != BankIDCodeUnitedStates {
-					return &InvalidBankIDCodeError{code}
+					return &InvalidBankIDCodeError{
+						MustCode: BankIDCodeUnitedStates,
+						Code:     code,
+					}
 				}
 				return nil
 			},
@@ -1414,6 +1575,7 @@ func (a *Attributes) validateUnitedStates() error {
 
 		validateBankIDCode = []validation.Rule{
 			validation.Required,
+			is.Alpha,
 			validateBankIDCodeMatch,
 		}
 
@@ -1425,9 +1587,9 @@ func (a *Attributes) validateUnitedStates() error {
 					!(length >= AccountNumberLengthUnitedStatesStart &&
 						length <= AccountNumberLengthUnitedStatesStop) {
 					return &InvalidAccountNumberLengthError{
-						Message: fmt.Sprintf("must be between %d and %d characters long",
-							AccountNumberLengthUnitedStatesStart, AccountNumberLengthUnitedStatesStop),
-						Length: length,
+						MustLengthFrom: AccountNumberLengthUnitedStatesStart,
+						MustLengthTo:   AccountNumberLengthUnitedStatesStop,
+						Length:         length,
 					}
 				}
 				return nil
@@ -1443,7 +1605,10 @@ func (a *Attributes) validateUnitedStates() error {
 			func(value interface{}) error {
 				currency, _ := value.(string)
 				if currency != "" && currency != CurrencyUnitedStates {
-					return &InvalidBaseCurrencyError{currency}
+					return &InvalidBaseCurrencyError{
+						MustCurrency: CurrencyUnitedKingdom,
+						Currency:     currency,
+					}
 				}
 				return nil
 			},
@@ -1451,6 +1616,7 @@ func (a *Attributes) validateUnitedStates() error {
 
 		validateBaseCurrency = []validation.Rule{
 			validateBaseCurrencyLength,
+			is.Alpha,
 			validateBaseCurrencyMatch,
 		}
 	)
@@ -1470,7 +1636,10 @@ func (o *Options) validate() error {
 			func(value interface{}) error {
 				match, _ := value.(string)
 				if match != accountType {
-					return &InvalidAccountTypeError{match}
+					return &InvalidAccountTypeError{
+						MustType: accountType,
+						Type:     match,
+					}
 				}
 				return nil
 			},
@@ -1500,13 +1669,18 @@ func (o *Options) validate() error {
 }
 
 func (a *Attributes) validate() error {
+	const countryLength = 2
+
 	var (
 		validateCountryLength = validation.By(
 			func(value interface{}) error {
 				country, _ := value.(string)
 				length := len(country)
 				if length != countryLength {
-					return &InvalidCountryLengthError{length}
+					return &InvalidCountryLengthError{
+						MustLength: countryLength,
+						Length:     length,
+					}
 				}
 				return nil
 			},
@@ -1517,15 +1691,43 @@ func (a *Attributes) validate() error {
 			validateCountryLength,
 		}
 
-		validateAlternativeAccountNames = []validation.Rule{
-			validation.Length(
-				alternativeAccountNamesArrayLengthStart,
-				alternativeAccountNamesArrayLengthStop,
-			),
-			validation.Each(validation.Length(
-				alternativeAccountNamesElemLengthStart,
-				alternativeAccountNamesElemLengthStop,
-			)),
+		validateAlternativeBankAccountNamesArrayLength = validation.By(
+			func(value interface{}) error {
+				array, _ := value.([]string)
+				length := len(array)
+				if length != 0 &&
+					!(length >= alternativeBankAccountNamesArrayLengthStart &&
+						length <= alternativeBankAccountNamesArrayLengthStop) {
+					return &InvalidAlternativeBankAccountArrayLengthError{
+						MustLengthFrom: alternativeBankAccountNamesArrayLengthStart,
+						MustLengthTo:   alternativeBankAccountNamesArrayLengthStop,
+						Length:         length,
+					}
+				}
+				return nil
+			},
+		)
+
+		validateAlternativeBankAccountNamesElemLength = validation.By(
+			func(value interface{}) error {
+				name, _ := value.(string)
+				length := len(name)
+				if length != 0 &&
+					!(length >= alternativeBankAccountNamesElemLengthStart &&
+						length <= alternativeBankAccountNamesElemLengthStop) {
+					return &InvalidAlternativeBankAccountElemLengthError{
+						MustLengthFrom: alternativeBankAccountNamesElemLengthStart,
+						MustLengthTo:   alternativeBankAccountNamesElemLengthStop,
+						Length:         length,
+					}
+				}
+				return nil
+			},
+		)
+
+		validateAlternativeBankAccountNames = []validation.Rule{
+			validateAlternativeBankAccountNamesArrayLength,
+			validation.Each(validateAlternativeBankAccountNamesElemLength),
 		}
 
 		validateFirstNameLength = validation.By(
@@ -1535,7 +1737,11 @@ func (a *Attributes) validate() error {
 				if name != "" &&
 					!(length >= firstNameLengthStart &&
 						length <= firstNameLengthStop) {
-					return &InvalidFirstNameLengthError{length}
+					return &InvalidFirstNameLengthError{
+						MustLengthFrom: firstNameLengthStart,
+						MustLengthTo:   firstNameLengthStop,
+						Length:         length,
+					}
 				}
 				return nil
 			},
@@ -1543,13 +1749,36 @@ func (a *Attributes) validate() error {
 
 		validateFirstName = []validation.Rule{
 			validateFirstNameLength,
+			is.Alpha,
+		}
+
+		validateCustomerIDLength = validation.By(
+			func(value interface{}) error {
+				id, _ := value.(string)
+				length := len(id)
+				if id != "" &&
+					!(length >= customerIDLengthStart &&
+						length <= customerIDLengthStop) {
+					return &InvalidCustomerIDLengthError{
+						MustLengthFrom: customerIDLengthStart,
+						MustLengthTo:   customerIDLengthStop,
+						Length:         length,
+					}
+				}
+				return nil
+			},
+		)
+
+		validateCustomerID = []validation.Rule{
+			validateCustomerIDLength,
 		}
 	)
 
 	if err := validation.ValidateStruct(a,
 		validation.Field(&a.Country, validateCountry...),
-		validation.Field(&a.AlternativeBankAccountNames, validateAlternativeAccountNames...),
+		validation.Field(&a.AlternativeBankAccountNames, validateAlternativeBankAccountNames...),
 		validation.Field(&a.FirstName, validateFirstName...),
+		validation.Field(&a.CustomerID, validateCustomerID...),
 	); err != nil {
 		return err
 	}
