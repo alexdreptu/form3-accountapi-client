@@ -25,16 +25,17 @@ var (
 	ErrAccountNumberFirstCharZero = errors.New(errMsgFirstCharZero)
 )
 
-// InvalidAccountTypeError is returned when Account Type is not 'accounts'.
+// InvalidAccountTypeError is returned if Account Type is not 'accounts'.
 type InvalidAccountTypeError struct {
-	Type string
+	MustType string
+	Type     string
 }
 
 func (e *InvalidAccountTypeError) Error() string {
-	return fmt.Sprintf("must be 'accounts' but it's '%s'", e.Type)
+	return fmt.Sprintf("must be '%s' but it's '%s'", e.MustType, e.Type)
 }
 
-// InvalidCountryError is returned when Country Code for a country is incorrect.
+// InvalidCountryError is returned if Country Code for a country is incorrect.
 type InvalidCountryError struct {
 	Country string
 }
@@ -43,53 +44,71 @@ func (e *InvalidCountryError) Error() string {
 	return fmt.Sprintf("invalid country '%s'", e.Country)
 }
 
-// InvalidCountryLengthError is returned when Country Code length is not 2 characters long.
+// InvalidCountryLengthError is returned if Country Code length is not 2 characters long.
 type InvalidCountryLengthError struct {
-	Length int
+	MustLength int
+	Length     int
 }
 
 func (e *InvalidCountryLengthError) Error() string {
-	return fmt.Sprintf("must be 2 characters long but it's %d", e.Length)
+	return fmt.Sprintf("must be %d characters long but its length is %d",
+		e.MustLength, e.Length)
 }
 
-// InvalidBankIDLengthError is returned when Bank ID length for a country is incorrect.
+// InvalidBankIDLengthError is returned if Bank ID length for a country is incorrect.
 type InvalidBankIDLengthError struct {
-	Length int
+	MustLength int
+	Length     int
 }
 
 func (e *InvalidBankIDLengthError) Error() string {
-	return fmt.Sprintf("must be 6 characters long but it's %d", e.Length)
+	return fmt.Sprintf("must be %d characters long but its length is %d",
+		e.MustLength, e.Length)
 }
 
-// InvalidBankIDCodeError is returned when the Bank ID Code for a country is incorrect.
+// InvalidBankIDCodeError is returned if the Bank ID Code for a country is incorrect.
 type InvalidBankIDCodeError struct {
-	Code string
+	MustCode string
+	Code     string
 }
 
 func (e *InvalidBankIDCodeError) Error() string {
-	return fmt.Sprintf("invalid bank id code '%s'", e.Code)
+	return fmt.Sprintf("must be '%s' but it's '%s'", e.MustCode, e.Code)
 }
 
-// InvalidBICLengthError is returned when BIC length is incorrect.
+// InvalidBICLengthError is returned if BIC length is incorrect.
 type InvalidBICLengthError struct {
-	Length int
+	MustLength1 int
+	MustLength2 int
+	Length      int
 }
 
 func (e *InvalidBICLengthError) Error() string {
-	return fmt.Sprintf("must be either 8 or 11 characters long but it's %d", e.Length)
+	return fmt.Sprintf("must be either %d or %d characters long but its length is %d",
+		e.MustLength1, e.MustLength2, e.Length)
 }
 
-// InvalidAccountNumberLengthError is returned when Account Number length for a country is incorrect.
+// InvalidAccountNumberLengthError is returned if Account Number length for a country is incorrect.
 type InvalidAccountNumberLengthError struct {
-	Message string
-	Length  int
+	MustLength     int
+	MustLengthFrom int
+	MustLengthTo   int
+	Length         int
 }
 
 func (e *InvalidAccountNumberLengthError) Error() string {
-	return fmt.Sprintf(e.Message+" "+"but it's %d", e.Length)
+	var message string
+	if e.MustLength == 0 || e.MustLengthFrom != 0 && e.MustLengthTo != 0 {
+		message = fmt.Sprintf("must be between %d and %d characters long but its length is %d",
+			e.MustLengthFrom, e.MustLengthTo, e.Length)
+	} else {
+		message = fmt.Sprintf("must be %d characters long but its length is %d",
+			e.MustLength, e.Length)
+	}
+	return message
 }
 
-// InvalidAccountNumberError is returned when Account Number is not a number
+// InvalidAccountNumberError is returned if Account Number is not a number
 type InvalidAccountNumberError struct {
 	Number string
 }
@@ -98,30 +117,72 @@ func (e *InvalidAccountNumberError) Error() string {
 	return fmt.Sprintf("must be a number but '%s' is not", e.Number)
 }
 
-// InvalidBaseCurrencyLengthError is returned when Base Currency length is not 3 characters long.
+// InvalidBaseCurrencyLengthError is returned if Base Currency length is not 3 characters long.
 // See https://www.iso.org/iso-4217-currency-codes.html
 type InvalidBaseCurrencyLengthError struct {
-	Length int
+	MustLength int
+	Length     int
 }
 
 func (e *InvalidBaseCurrencyLengthError) Error() string {
-	return fmt.Sprintf("must be 3 characters long but it's %d", e.Length)
+	return fmt.Sprintf("must be %d characters long but its length is %d",
+		e.MustLength, e.Length)
 }
 
-// InvalidBaseCurrencyError is returned when Base Currency for a country is incorrect.
+// InvalidBaseCurrencyError is returned if Base Currency for a country is incorrect.
 type InvalidBaseCurrencyError struct {
-	Currency string
+	MustCurrency string
+	Currency     string
 }
 
 func (e *InvalidBaseCurrencyError) Error() string {
-	return fmt.Sprintf("invalid base currency '%s'", e.Currency)
+	return fmt.Sprintf("must be '%s' but it's '%s'", e.MustCurrency, e.Currency)
 }
 
 // InvalidFirstNameLengthError is returned if Firstname is not between between 2 and 140 characters long.
 type InvalidFirstNameLengthError struct {
-	Length int
+	MustLengthFrom int
+	MustLengthTo   int
+	Length         int
 }
 
 func (e *InvalidFirstNameLengthError) Error() string {
-	return fmt.Sprintf("must be between 2 and 140 characters long but it's %d", e.Length)
+	return fmt.Sprintf("must be between %d and %d characters long but its length is %d",
+		e.MustLengthFrom, e.MustLengthTo, e.Length)
+}
+
+// InvalidCustomerIDLengthError is returned if CustomerID Length is not between 5 and 15 characters long.
+type InvalidCustomerIDLengthError struct {
+	MustLengthFrom int
+	MustLengthTo   int
+	Length         int
+}
+
+func (e *InvalidCustomerIDLengthError) Error() string {
+	return fmt.Sprintf("must be between %d and %d characters long but its length is %d",
+		e.MustLengthFrom, e.MustLengthTo, e.Length)
+}
+
+// InvalidAlternativeBankAccountArrayLengthError is returned if Alternative Bank Account Array's length is bigger than 3.
+type InvalidAlternativeBankAccountArrayLengthError struct {
+	MustLengthFrom int
+	MustLengthTo   int
+	Length         int
+}
+
+func (e *InvalidAlternativeBankAccountArrayLengthError) Error() string {
+	return fmt.Sprintf("must be between %d and %d in length but its length is %d",
+		e.MustLengthFrom, e.MustLengthTo, e.Length)
+}
+
+// InvalidAlternativeBankAccountElemLengthError is returned if Alternative Bank Account element is not between 3 and 140 characters long.
+type InvalidAlternativeBankAccountElemLengthError struct {
+	MustLengthFrom int
+	MustLengthTo   int
+	Length         int
+}
+
+func (e *InvalidAlternativeBankAccountElemLengthError) Error() string {
+	return fmt.Sprintf("must between %d and %d characters long but its length is %d",
+		e.MustLengthFrom, e.MustLengthTo, e.Length)
 }
