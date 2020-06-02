@@ -9,26 +9,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewAccount(t *testing.T) {
-	type testOptions struct {
-		name                           string
-		shouldError                    bool
-		accType                        string
-		accID                          string
-		accOrganisationID              string
-		accCountry                     string
-		accBIC                         string
-		accBankID                      string
-		accBankIDCode                  string
-		accAccountNumber               string
-		accBaseCurrency                string
-		accJointAccount                bool
-		accFirstName                   string
-		accAlternativeBankAccountNames []string
-		accAccountMatchingOptOut       bool
-		accCustomerID                  string
-	}
+type testOptions struct {
+	name                           string
+	shouldError                    bool
+	accType                        string
+	accID                          string
+	accOrganisationID              string
+	accCountry                     string
+	accBIC                         string
+	accBankID                      string
+	accBankIDCode                  string
+	accAccountNumber               string
+	accBaseCurrency                string
+	accJointAccount                bool
+	accFirstName                   string
+	accAlternativeBankAccountNames []string
+	accAccountMatchingOptOut       bool
+	accCustomerID                  string
+}
 
+func TestNewAccount(t *testing.T) {
 	allCountriesTestCases := []testOptions{
 		// Type tests
 		{
@@ -159,22 +159,6 @@ func TestNewAccount(t *testing.T) {
 			accAccountNumber:               randomAccountNumberUnitedKingdom(),
 			accBaseCurrency:                CurrencyUnitedKingdom,
 			accFirstName:                   randomAlpha(1),
-			accAlternativeBankAccountNames: randomAlternativeBankAccountNames(),
-			accCustomerID:                  randomCustomerID(),
-		},
-		{
-			name:                           "invalid firstname length 141",
-			shouldError:                    true,
-			accType:                        accountType,
-			accID:                          uuid.New().String(),
-			accOrganisationID:              uuid.New().String(),
-			accCountry:                     CountryUnitedKingdom,
-			accBIC:                         randomBIC(),
-			accBankID:                      randomBankIDUnitedKingdom(),
-			accBankIDCode:                  BankIDCodeUnitedKingdom,
-			accAccountNumber:               randomAccountNumberUnitedKingdom(),
-			accBaseCurrency:                CurrencyUnitedKingdom,
-			accFirstName:                   randomAlpha(141),
 			accAlternativeBankAccountNames: randomAlternativeBankAccountNames(),
 			accCustomerID:                  randomCustomerID(),
 		},
@@ -4871,6 +4855,7 @@ func TestNewAccount(t *testing.T) {
 					}
 
 					account, err := NewAccount(options)
+					require.IsType(t, &Account{}, account)
 					if cc.shouldError {
 						require.Error(t, err)
 					} else {
