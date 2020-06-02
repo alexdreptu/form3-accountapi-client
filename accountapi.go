@@ -3,11 +3,20 @@
 package accountapi
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io/ioutil"
 	"net/http"
+	"net/url"
+	"os"
+	"path"
+	"strconv"
 
 	"github.com/google/uuid"
 )
+
+const DefaultBaseURL = "http://localhost:8080/v1/organisation/accounts"
 
 // ISO 3166-1 country codes
 const (
@@ -107,7 +116,7 @@ const (
 	AccountNumberLengthHongKongStop      = 12
 	AccountNumberLengthItaly             = 12
 	AccountNumberLengthLuxembourg        = 13
-	AccountNumberLengthNetherlands       = 0 // 0 because not supported
+	AccountNumberLengthNetherlands       = 10
 	AccountNumberLengthPoland            = 16
 	AccountNumberLengthPortugal          = 11
 	AccountNumberLengthSpain             = 10
@@ -116,7 +125,7 @@ const (
 	AccountNumberLengthUnitedStatesStop  = 17
 )
 
-// Options holds the options that are to be passed as an argument to NewAccount
+// Options holds the options meant to be passed as an argument to NewAccount
 type Options struct {
 	Type           string
 	ID             string
@@ -124,7 +133,7 @@ type Options struct {
 	Attributes     []Attribute
 }
 
-// Attributes holds all the account attributes
+// Attributes holds the account attributes
 type Attributes struct {
 	// ISO 3166-1 code used to identify the domicile of the account, e.g. 'GB', 'FR'.
 	// For more info see https://www.iso.org/iso-3166-country-codes.html
@@ -200,32 +209,182 @@ type Account struct {
 	ErrorMessage string `json:"error_message,omitempty"`
 }
 
-type ListAccounts struct {
-	Data []Data `json:"data"`
+type Accounts struct {
+	Data  []Data `json:"data"`
+	Links Links  `json:"links"`
 }
 
 type Client struct {
-	Client *http.Client
+	Client  *http.Client
+	BaseURL string
 }
 
-func (c *Client) CreateAccount(ctx context.Context, a *Account) (Account, error) {
-	return Account{}, nil
+func (c *Client) CreateAccount(ctx context.Context, account *Account) (Account, error) {
+	baseURL, err := url.Parse(c.BaseURL)
+	if err != nil {
+		return Account{}, err
+	}
+
+	data, err := json.Marshal(account)
+	if err != nil {
+		return Account{}, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, baseURL.String(), bytes.NewBuffer(data))
+	if err != nil {
+		return Account{}, err
+	}
+
+	req.Header.Set("Accept", "vnd.api+json")
+	req.Header.Set("Content-Type", "application/vnd.api+json")
+
+	resp, err := c.Client.Do(req.WithContext(ctx))
+	if err != nil {
+		return Account{}, err
+	}
+	defer resp.Body.Close()
+
+	// fmt.Println(resp.StatusCode)
+	switch resp.StatusCode {
+	case http.StatusNotFound:
+		return Account{}, &ResourceNotExistsError{baseURL.String()}
+	case http.StatusConflict:
+		return Account{}, &DuplicateAccountError{account.Data.ID}
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return Account{}, err
+	}
+
+	var a Account
+	if err := json.Unmarshal(body, &a); err != nil {
+		return Account{}, err
+	}
+
+	return a, nil
 }
 
 func (c *Client) FetchAccount(ctx context.Context, id string) (Account, error) {
-	return Account{}, nil
+	accountID, err := uuid.Parse(id)
+	if err != nil {
+		return Account{}, err
+	}
+
+	baseURL, err := url.Parse(c.BaseURL)
+	if err != nil {
+		return Account{}, err
+	}
+
+	baseURL.Path = path.Join(baseURL.Path, accountID.String())
+
+	req, err := http.NewRequest(http.MethodGet, baseURL.String(), nil)
+	if err != nil {
+		return Account{}, err
+	}
+
+	req.Header.Set("Accept", "vnd.api+json")
+
+	resp, err := c.Client.Do(req.WithContext(ctx))
+	if err != nil {
+		return Account{}, err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusNotFound:
+		return Account{}, &RecordNotExistsError{id}
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return Account{}, err
+	}
+
+	var a Account
+	if err := json.Unmarshal(body, &a); err != nil {
+		return Account{}, err
+	}
+
+	return a, nil
 }
 
-func (c *Client) ListAccounts() (ListAccounts, error) {
-	return ListAccounts{}, nil
+func (c *Client) ListAccounts(ctx context.Context, pageNumber, pageSize int) (Accounts, error) {
+	baseURL, err := url.Parse(c.BaseURL)
+	if err != nil {
+		return Accounts{}, err
+	}
+
+	params := url.Values{}
+	params.Add("page[number]", strconv.Itoa(pageNumber))
+	params.Add("page[size]", strconv.Itoa(pageSize))
+	baseURL.RawQuery = params.Encode()
+
+	req, err := http.NewRequest(http.MethodGet, baseURL.String(), nil)
+	if err != nil {
+		return Accounts{}, nil
+	}
+
+	req.Header.Set("Accept", "vnd.api+json")
+
+	resp, err := c.Client.Do(req.WithContext(ctx))
+	if err != nil {
+		return Accounts{}, err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusNotFound:
+		return Accounts{}, &ResourceNotExistsError{baseURL.String()}
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return Accounts{}, err
+	}
+
+	var a Accounts
+	if err := json.Unmarshal(body, &a); err != nil {
+		return Accounts{}, err
+	}
+
+	return a, nil
 }
 
-func (c *Client) DeleteAccount(id uuid.UUID) error {
+func (c *Client) DeleteAccount(ctx context.Context, id string, version int) error {
+	accountID, err := uuid.Parse(id)
+	if err != nil {
+		return err
+	}
+
+	baseURL, err := url.Parse(c.BaseURL)
+	if err != nil {
+		return err
+	}
+
+	baseURL.Path = path.Join(baseURL.Path, accountID.String())
+	params := url.Values{}
+	params.Add("version", strconv.Itoa(version))
+	baseURL.RawQuery = params.Encode()
+
+	req, err := http.NewRequest(http.MethodDelete, baseURL.String(), nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.Client.Do(req.WithContext(ctx))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return &InvalidVersionError{version}
+	}
+
 	return nil
 }
 
-// NewAccount returns an Account type with the proper fields filled and validated,
-// otherwise returns an error if something went wrong.
 func NewAccount(opt *Options) (*Account, error) {
 	if err := opt.validate(); err != nil {
 		return nil, err
@@ -255,71 +414,91 @@ func NewAccount(opt *Options) (*Account, error) {
 	return account, nil
 }
 
-func NewClient(c *http.Client) *Client {
-	return &Client{c}
+func NewClient(client *http.Client, baseURL ...string) *Client {
+	cl := &Client{}
+
+	if client != nil {
+		cl.Client = client
+	} else {
+		cl.Client = &http.Client{}
+	}
+
+	u := os.Getenv("FORM3_BASE_URL")
+	if u != "" {
+		cl.BaseURL = u
+	} else {
+		if len(baseURL) != 0 && baseURL[0] != "" {
+			cl.BaseURL = baseURL[0]
+		} else {
+			cl.BaseURL = DefaultBaseURL
+		}
+	}
+
+	return cl
 }
 
-func WithAttrCountry(v string) Attribute {
+func WithAttrCountry(country string) Attribute {
 	return func(a *Attributes) {
-		a.Country = v
+		a.Country = country
 	}
 }
 
-func WithAttrBankID(v string) Attribute {
+func WithAttrBankID(id string) Attribute {
 	return func(a *Attributes) {
-		a.BankID = v
-	}
-}
-func WithAttrBankIDCode(v string) Attribute {
-	return func(a *Attributes) {
-		a.BankIDCode = v
+		a.BankID = id
 	}
 }
 
-func WithAttrBIC(v string) Attribute {
+func WithAttrBankIDCode(code string) Attribute {
 	return func(a *Attributes) {
-		a.BIC = v
+		a.BankIDCode = code
 	}
 }
 
-func WithAttrAccountNumber(v string) Attribute {
+func WithAttrBIC(bic string) Attribute {
 	return func(a *Attributes) {
-		a.AccountNumber = v
+		a.BIC = bic
 	}
 }
 
-func WithAttrBaseCurrency(v string) Attribute {
+func WithAttrAccountNumber(number string) Attribute {
 	return func(a *Attributes) {
-		a.BaseCurrency = v
+		a.AccountNumber = number
 	}
 }
 
-func WithAttrJointAccount(v bool) Attribute {
+func WithAttrBaseCurrency(currency string) Attribute {
 	return func(a *Attributes) {
-		a.JointAccount = v
+		a.BaseCurrency = currency
 	}
 }
 
-func WithAttrFirstName(v string) Attribute {
+func WithAttrJointAccount(joint bool) Attribute {
 	return func(a *Attributes) {
-		a.FirstName = v
+		a.JointAccount = joint
 	}
 }
 
-func WithAttrAlternativeBankAccountNames(v ...string) Attribute {
+func WithAttrFirstName(name string) Attribute {
 	return func(a *Attributes) {
-		a.AlternativeBankAccountNames = v
+		a.FirstName = name
 	}
 }
 
-func WithAttrAccountMatchingOptOut(v bool) Attribute {
+func WithAttrAlternativeBankAccountNames(names ...string) Attribute {
 	return func(a *Attributes) {
-		a.AccountMatchingOptOut = v
+		a.AlternativeBankAccountNames = names
 	}
 }
 
-func WithAttrCustomerID(v string) Attribute {
+func WithAttrAccountMatchingOptOut(optOut bool) Attribute {
 	return func(a *Attributes) {
-		a.CustomerID = v
+		a.AccountMatchingOptOut = optOut
+	}
+}
+
+func WithAttrCustomerID(id string) Attribute {
+	return func(a *Attributes) {
+		a.CustomerID = id
 	}
 }
