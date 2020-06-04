@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const DefaultBaseURL = "http://localhost:8080/v1/organisation/accounts"
+const envBaseURL = "FORM3_BASE_URL"
 
 // ISO 3166-1 country codes
 const (
@@ -220,6 +220,14 @@ type Client struct {
 }
 
 func (c *Client) CreateAccount(ctx context.Context, account *Account) (Account, error) {
+	if c.Client == nil {
+		c.Client = &http.Client{}
+	}
+
+	if c.BaseURL == "" {
+		c.BaseURL = DefaultBaseURL()
+	}
+
 	baseURL, err := url.Parse(c.BaseURL)
 	if err != nil {
 		return Account{}, err
@@ -244,7 +252,6 @@ func (c *Client) CreateAccount(ctx context.Context, account *Account) (Account, 
 	}
 	defer resp.Body.Close()
 
-	// fmt.Println(resp.StatusCode)
 	switch resp.StatusCode {
 	case http.StatusNotFound:
 		return Account{}, &ResourceNotExistsError{baseURL.String()}
@@ -266,6 +273,14 @@ func (c *Client) CreateAccount(ctx context.Context, account *Account) (Account, 
 }
 
 func (c *Client) FetchAccount(ctx context.Context, id string) (Account, error) {
+	if c.Client == nil {
+		c.Client = &http.Client{}
+	}
+
+	if c.BaseURL == "" {
+		c.BaseURL = DefaultBaseURL()
+	}
+
 	accountID, err := uuid.Parse(id)
 	if err != nil {
 		return Account{}, err
@@ -291,9 +306,8 @@ func (c *Client) FetchAccount(ctx context.Context, id string) (Account, error) {
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusNotFound:
-		return Account{}, &RecordNotExistsError{id}
+	if resp.StatusCode == http.StatusNotFound {
+		return Account{}, &ResourceNotExistsError{baseURL.String()}
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -310,6 +324,14 @@ func (c *Client) FetchAccount(ctx context.Context, id string) (Account, error) {
 }
 
 func (c *Client) ListAccounts(ctx context.Context, pageNumber, pageSize int) (Accounts, error) {
+	if c.Client == nil {
+		c.Client = &http.Client{}
+	}
+
+	if c.BaseURL == "" {
+		c.BaseURL = DefaultBaseURL()
+	}
+
 	baseURL, err := url.Parse(c.BaseURL)
 	if err != nil {
 		return Accounts{}, err
@@ -333,8 +355,7 @@ func (c *Client) ListAccounts(ctx context.Context, pageNumber, pageSize int) (Ac
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusNotFound:
+	if resp.StatusCode == http.StatusNotFound {
 		return Accounts{}, &ResourceNotExistsError{baseURL.String()}
 	}
 
@@ -352,6 +373,14 @@ func (c *Client) ListAccounts(ctx context.Context, pageNumber, pageSize int) (Ac
 }
 
 func (c *Client) DeleteAccount(ctx context.Context, id string, version int) error {
+	if c.Client == nil {
+		c.Client = &http.Client{}
+	}
+
+	if c.BaseURL == "" {
+		c.BaseURL = DefaultBaseURL()
+	}
+
 	accountID, err := uuid.Parse(id)
 	if err != nil {
 		return err
@@ -379,7 +408,7 @@ func (c *Client) DeleteAccount(ctx context.Context, id string, version int) erro
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return &InvalidVersionError{version}
+		return &ResourceNotExistsError{baseURL.String()}
 	}
 
 	return nil
@@ -415,26 +444,21 @@ func NewAccount(opt *Options) (*Account, error) {
 }
 
 func NewClient(client *http.Client, baseURL ...string) *Client {
-	cl := &Client{}
+	c := &Client{}
 
 	if client != nil {
-		cl.Client = client
+		c.Client = client
 	} else {
-		cl.Client = &http.Client{}
+		c.Client = &http.Client{}
 	}
 
-	u := os.Getenv("FORM3_BASE_URL")
-	if u != "" {
-		cl.BaseURL = u
+	if len(baseURL) != 0 && baseURL[0] != "" {
+		c.BaseURL = baseURL[0]
 	} else {
-		if len(baseURL) != 0 && baseURL[0] != "" {
-			cl.BaseURL = baseURL[0]
-		} else {
-			cl.BaseURL = DefaultBaseURL
-		}
+		c.BaseURL = DefaultBaseURL()
 	}
 
-	return cl
+	return c
 }
 
 func WithAttrCountry(country string) Attribute {
@@ -501,4 +525,12 @@ func WithAttrCustomerID(id string) Attribute {
 	return func(a *Attributes) {
 		a.CustomerID = id
 	}
+}
+
+func DefaultBaseURL() string {
+	u := os.Getenv(envBaseURL)
+	if u == "" {
+		u = "http://localhost:8080/v1/organisation/accounts"
+	}
+	return u
 }
