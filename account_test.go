@@ -19,11 +19,11 @@ func TestNewClient(t *testing.T) {
 	// test if without passing url to NewClient, client.BaseURL is set to default
 	client := NewClient(&http.Client{})
 	require.IsType(t, &Client{}, client)
-	assert.Equal(t, DefaultBaseURL, client.BaseURL)
+	assert.Equal(t, DefaultBaseURL(), client.BaseURL)
 
 	// test if without passing an url string to NewClient, client.BaseURL is set to default
 	client = NewClient(&http.Client{}, "")
-	assert.Equal(t, DefaultBaseURL, client.BaseURL)
+	assert.Equal(t, DefaultBaseURL(), client.BaseURL)
 }
 
 type CreateAccountSuite struct {
@@ -106,7 +106,7 @@ func (s *CreateAccountSuite) TestCreateAccount() {
 
 func (s *CreateAccountSuite) TestCreateAccount_InvalidURL() {
 	options := &Options{
-		ID:             s.testAccount.accID,
+		ID:             uuid.New().String(),
 		OrganisationID: s.testAccount.accOrganisationID,
 		Type:           s.testAccount.accType,
 		Attributes: []Attribute{
@@ -126,12 +126,18 @@ func (s *CreateAccountSuite) TestCreateAccount_InvalidURL() {
 
 	account, err := NewAccount(options)
 	s.Require().NoError(err)
-	client := NewClient(&http.Client{}, "http://localhost:8080/v1/organisation/accountsX")
+
+	client := NewClient(&http.Client{}, DefaultBaseURL()+"x")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	_, err = client.CreateAccount(ctx, account)
 	s.Require().Error(err)
 	var e *ResourceNotExistsError
+	s.Assert().True(errors.As(err, &e))
+
+	client.BaseURL = DefaultBaseURL() + "x"
+	_, err = client.CreateAccount(ctx, account)
+	s.Require().Error(err)
 	s.Assert().True(errors.As(err, &e))
 }
 
@@ -256,13 +262,13 @@ func (s *FetchAccountSuite) TestFetchAccount() {
 	s.Assert().Equal(s.testAccount.accCustomerID, fetchedAccount.Data.Attributes.CustomerID)
 }
 
-func (s *FetchAccountSuite) TestFetchAccount_InvalidID() {
+func (s *FetchAccountSuite) TestFetchAccount_InvalidURL() {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	client := NewClient(&http.Client{})
+	client := NewClient(&http.Client{}, DefaultBaseURL()+"x")
 	_, err := client.FetchAccount(ctx, uuid.New().String())
 	s.Require().Error(err)
-	var e *RecordNotExistsError
+	var e *ResourceNotExistsError
 	s.Require().True(errors.As(err, &e))
 }
 
@@ -346,26 +352,15 @@ func (s *ListAccountsSuite) TearDownSuite() {
 func (s *ListAccountsSuite) TestListAccounts() {
 	const selfLink = "/v1/organisation/accounts?page%%5Bnumber%%5D=%d&page%%5Bsize%%5D=%d"
 
-	// test if it returns an error when an invalid url is passed to NewClient
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	client := NewClient(&http.Client{}, "http://localhost:8080/v1/organisation/accountsX")
-	_, err := client.ListAccounts(ctx, 1, 5)
-	s.Require().Error(err)
-	// test if the error returned is ResourceNotExists
-	var e *ResourceNotExistsError
-	s.Assert().True(errors.As(err, &e))
-
 	testCases := []struct {
-		name        string
-		shouldError bool
-		pageNumber  int
-		pageSize    int
+		name       string
+		pageNumber int
+		pageSize   int
 	}{
-		{name: "page number 1 page size 5", shouldError: false, pageNumber: 1, pageSize: 5},
-		{name: "page number 2 page size 10", shouldError: false, pageNumber: 2, pageSize: 10},
-		{name: "page number 3 page size 10", shouldError: false, pageNumber: 3, pageSize: 10},
-		{name: "page number 1 page size 30", shouldError: false, pageNumber: 1, pageSize: 30},
+		{name: "page number 0 page size 5", pageNumber: 0, pageSize: 5},
+		{name: "page number 1 page size 10", pageNumber: 1, pageSize: 10},
+		{name: "page number 2 page size 10", pageNumber: 2, pageSize: 10},
+		{name: "page number 0 page size 30", pageNumber: 0, pageSize: 30},
 	}
 
 	for _, tc := range testCases {
@@ -374,18 +369,30 @@ func (s *ListAccountsSuite) TestListAccounts() {
 			defer cancel()
 			client := NewClient(&http.Client{})
 			accountList, err := client.ListAccounts(ctx, tc.pageNumber, tc.pageSize)
-			if tc.shouldError {
-				s.Require().Error(err)
-			} else {
-				s.Require().NoError(err)
-				s.Require().IsType(Accounts{}, accountList)
-				s.Require().NotEmpty(accountList)
+			s.Require().NoError(err)
+			s.Require().IsType(Accounts{}, accountList)
+			s.Require().NotEmpty(accountList)
 
-				self := fmt.Sprintf(selfLink, tc.pageNumber, tc.pageSize)
-				s.Assert().Equal(self, accountList.Links.Self)
-			}
+			self := fmt.Sprintf(selfLink, tc.pageNumber, tc.pageSize)
+			s.Assert().Equal(self, accountList.Links.Self)
 		})
 	}
+}
+
+func (s *ListAccountsSuite) TestListAccounts_InvalidURL() {
+	// test if it returns an error when an invalid url is passed to NewClient
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	client := NewClient(&http.Client{}, DefaultBaseURL()+"x")
+	_, err := client.ListAccounts(ctx, 1, 5)
+	s.Require().Error(err)
+	// test if the error returned is ResourceNotExists
+	var e *ResourceNotExistsError
+	s.Assert().True(errors.As(err, &e))
+
+	client.BaseURL = DefaultBaseURL() + "x"
+	_, err = client.ListAccounts(ctx, 1, 5)
+	s.Assert().True(errors.As(err, &e))
 }
 
 func TestListAccountsSuite(t *testing.T) {
@@ -448,50 +455,89 @@ func (s *DeleteAccountSuite) SetupSuite() {
 func (s *DeleteAccountSuite) TestDeleteAccount() {
 	const version = 0
 
-	testCases := []struct {
-		name        string
-		shouldError bool
-		err         error
-		id          string
-		version     int
-	}{
-		{
-			name:        "invalid account id format",
-			shouldError: true,
-			id:          randomAlphanumeric(36, alphanumericStyleMix),
-			version:     version,
-		},
-		{
-			name:        "incorrect version",
-			shouldError: true,
-			err:         &InvalidVersionError{},
-			id:          s.testAccount.accID,
-			version:     1,
-		},
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-	for _, tc := range testCases {
-		s.Run(tc.name, func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-			client := NewClient(&http.Client{})
-			err := client.DeleteAccount(ctx, tc.id, tc.version)
-			if tc.shouldError {
-				s.Require().Error(err)
-				s.Require().True(errors.As(err, &tc.err))
-			} else {
-				s.Require().NoError(err)
-			}
-		})
-	}
+	client := NewClient(&http.Client{})
+
+	// invalid account id format
+	err := client.DeleteAccount(ctx, randomAlphanumeric(36, alphanumericStyleMix), version)
+	s.Require().Error(err)
+
+	// incorrect version
+	err = client.DeleteAccount(ctx, s.testAccount.accID, 1)
+	s.Require().Error(err)
+	var e *ResourceNotExistsError
+	s.Require().True(errors.As(err, &e))
+
+	// delete account
+	err = client.DeleteAccount(ctx, s.testAccount.accID, version)
+	s.Require().NoError(err)
+}
+
+func (s *DeleteAccountSuite) TestDeleteAccount_InvalidURL() {
+	const version = 0
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	client := NewClient(&http.Client{})
-	err := client.DeleteAccount(ctx, s.testAccount.accID, version)
-	s.Require().NoError(err)
+
+	client := NewClient(&http.Client{}, DefaultBaseURL()+"x")
+	err := client.DeleteAccount(ctx, uuid.New().String(), version)
+	s.Require().Error(err)
+	var e *ResourceNotExistsError
+	s.Require().True(errors.As(err, &e))
+
+	client.BaseURL = DefaultBaseURL() + "x"
+	err = client.DeleteAccount(ctx, uuid.New().String(), version)
+	s.Require().Error(err)
+	s.Require().True(errors.As(err, &e))
 }
 
 func TestDeleteAccountSuite(t *testing.T) {
 	suite.Run(t, &DeleteAccountSuite{})
+}
+
+func TestWithAttrFunctions(t *testing.T) {
+	attributes := &Attributes{}
+
+	country := CountryUnitedKingdom
+	bankID := randomBankIDUnitedKingdom()
+	bankIDCode := BankIDCodeUnitedKingdom
+	bic := randomBIC()
+	accountNumber := randomAccountNumberUnitedKingdom()
+	currency := CurrencyUnitedKingdom
+	jointAccount := randomBool()
+	firstName := randomFirstName()
+	alternativeBankAccountNames := randomAlternativeBankAccountNames()
+	accountMatchingOptOut := randomBool()
+	customerID := randomCustomerID()
+
+	attrs := []Attribute{
+		WithAttrCountry(country),
+		WithAttrBankID(bankID),
+		WithAttrBankIDCode(bankIDCode),
+		WithAttrBIC(bic),
+		WithAttrAccountNumber(accountNumber),
+		WithAttrBaseCurrency(currency),
+		WithAttrJointAccount(jointAccount),
+		WithAttrFirstName(firstName),
+		WithAttrAlternativeBankAccountNames(alternativeBankAccountNames...),
+		WithAttrAccountMatchingOptOut(accountMatchingOptOut),
+		WithAttrCustomerID(customerID),
+	}
+
+	for _, attr := range attrs {
+		attr(attributes)
+	}
+
+	assert.Equal(t, country, attributes.Country)
+	assert.Equal(t, bankID, attributes.BankID)
+	assert.Equal(t, bankIDCode, attributes.BankIDCode)
+	assert.Equal(t, bic, attributes.BIC)
+	assert.Equal(t, accountNumber, attributes.AccountNumber)
+	assert.Equal(t, currency, attributes.BaseCurrency)
+	assert.Equal(t, jointAccount, attributes.JointAccount)
+	assert.Equal(t, firstName, attributes.FirstName)
+	assert.Equal(t, alternativeBankAccountNames, attributes.AlternativeBankAccountNames)
+	assert.Equal(t, customerID, attributes.CustomerID)
 }
