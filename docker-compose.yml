@@ -1,6 +1,16 @@
 version: "3"
 
 services:
+  accountapi-client:
+    image: ${DOCKER_USER}/accountapi-client:${IMAGE_VERSION}
+    build:
+      context: .
+    environment:
+      - CGO_ENABLED=0
+      - FORM3_BASE_URL
+    depends_on:
+      - accountapi
+
   accountapi:
     image: form3tech/interview-accountapi:v1.0.0-4-g63cf8434
     restart: on-failure
