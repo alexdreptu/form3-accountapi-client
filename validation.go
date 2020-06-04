@@ -71,12 +71,11 @@ var (
 		},
 	)
 
-	// NOTE: possible bug
 	validateStringNumber = validation.By(
 		func(value interface{}) error {
 			number, _ := value.(string)
 			if number != "" {
-				_, err := strconv.ParseFloat(number, 64)
+				_, err := strconv.ParseInt(number, 10, 64)
 				if err != nil {
 					return &InvalidAccountNumberError{number}
 				}
