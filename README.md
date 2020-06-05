@@ -1,3 +1,13 @@
+## Run the tests
+
+```
+docker-compose up -d
+```
+
+```
+docker-compose logs accountapi-client
+```
+
 ## Usage
 
 ### Creating an account
