@@ -22,7 +22,7 @@ const (
 	firstNameLengthStop  = 140
 )
 
-// AlternativeAccountNames attribute lengths
+// AlternativeBankAccountNames attribute lengths
 const (
 	alternativeBankAccountNamesArrayLengthStart = 1
 	alternativeBankAccountNamesArrayLengthStop  = 3
@@ -1775,7 +1775,10 @@ func (a *Attributes) validate() error {
 
 	if err := validation.ValidateStruct(a,
 		validation.Field(&a.Country, validateCountry...),
-		validation.Field(&a.AlternativeBankAccountNames, validateAlternativeBankAccountNames...),
+		validation.Field(
+			&a.AlternativeBankAccountNames,
+			validateAlternativeBankAccountNames...,
+		),
 		validation.Field(&a.FirstName, validateFirstName...),
 		validation.Field(&a.CustomerID, validateCustomerID...),
 	); err != nil {

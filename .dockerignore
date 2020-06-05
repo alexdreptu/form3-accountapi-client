@@ -1,0 +1,5 @@
+*.md
+Makefile
+scripts
+.git
+.gitignore
