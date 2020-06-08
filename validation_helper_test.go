@@ -32,76 +32,26 @@ const startWithZero = true
 // for randomBankIDItaly
 const accountNumberPresent = true
 
-var (
-	firstNamesMale = []string{
-		"Jacob",
-		"Mason",
-		"Ethan",
-		"Noah",
-		"William",
-		"Liam",
-		"Jayden",
-		"Michael",
-		"Alexander",
-		"Aiden",
-		"Daniel",
-		"Matthew",
-		"Elijah",
-		"James",
-		"Anthony",
-		"Benjamin",
-		"Joshua",
-		"Andrew",
-		"David",
-		"Joseph",
-	}
+var firstNamesMale = []string{
+	"Jacob", "Mason", "Ethan", "Noah", "William",
+	"Liam", "Jayden", "Michael", "Alexander", "Aiden",
+	"Daniel", "Matthew", "Elijah", "James", "Anthony",
+	"Benjamin", "Joshua", "Andrew", "David", "Joseph",
+}
 
-	firstNamesFemale = []string{
-		"Sophia",
-		"Emma",
-		"Isabella",
-		"Olivia",
-		"Ava",
-		"Emily",
-		"Abigail",
-		"Mia",
-		"Madison",
-		"Elizabeth",
-		"Chloe",
-		"Ella",
-		"Avery",
-		"Addison",
-		"Aubrey",
-		"Lily",
-		"Natalie",
-		"Sofia",
-		"Charlotte",
-		"Zoey",
-	}
+var firstNamesFemale = []string{
+	"Sophia", "Emma", "Isabella", "Olivia", "Ava",
+	"Emily", "Abigail", "Mia", "Madison", "Elizabeth",
+	"Chloe", "Ella", "Avery", "Addison", "Aubrey",
+	"Lily", "Natalie", "Sofia", "Charlotte", "Zoey",
+}
 
-	lastNames = []string{
-		"Smith",
-		"Johnson",
-		"Williams",
-		"Jones",
-		"Brown",
-		"Davis",
-		"Miller",
-		"Wilson",
-		"Moore",
-		"Taylor",
-		"Anderson",
-		"Thomas",
-		"Jackson",
-		"White",
-		"Harris",
-		"Martin",
-		"Thompson",
-		"Garcia",
-		"Martinez",
-		"Robinson",
-	}
-)
+var lastNames = []string{
+	"Smith", "Johnson", "Williams", "Jones", "Brown",
+	"Davis", "Miller", "Wilson", "Moore", "Taylor",
+	"Anderson", "Thomas", "Jackson", "White", "Harris",
+	"Martin", "Thompson", "Garcia", "Martinez", "Robinson",
+}
 
 func randomFirstName() string {
 	length := len(firstNamesMale) + len(firstNamesFemale)

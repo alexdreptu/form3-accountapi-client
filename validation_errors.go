@@ -108,7 +108,7 @@ func (e *InvalidAccountNumberLengthError) Error() string {
 	return message
 }
 
-// InvalidAccountNumberError is returned if Account Number is not a number
+// InvalidAccountNumberError is returned if Account Number is not a number.
 type InvalidAccountNumberError struct {
 	Number string
 }

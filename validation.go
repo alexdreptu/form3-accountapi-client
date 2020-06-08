@@ -9,9 +9,13 @@ import (
 )
 
 const (
-	accountType           = "accounts"
-	countryLength         = 2
-	baseCurrencyLength    = 3
+	accountType        = "accounts"
+	countryLength      = 2
+	baseCurrencyLength = 3
+)
+
+// CustomerID attribute lengths
+const (
 	customerIDLengthStart = 5
 	customerIDLengthStop  = 15
 )
